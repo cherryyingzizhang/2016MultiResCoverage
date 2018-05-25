@@ -70,9 +70,10 @@
 %Cherry added this to be able to write lemmas and proofs
 \usepackage{amsthm}
 \theoremstyle{plain}% default
-\newtheorem{theorem}{Theorem}[section]
-\newtheorem{lemma}[theorem]{Lemma}
-\newtheorem{claim}[theorem]{Claim}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{claim}{Claim}
+\newtheorem{problem}{Problem Statement}
 %Cherry added this to use \norm
 \usepackage{commath}
 %Cherry added this to add the Z integer symbol.
@@ -436,7 +437,7 @@ Finally, we also plan to use a CGTSP solver that is similar to Bochkarev and Smi
 \section{Preliminaries} \label{Preliminaries}
 Let $Q$ be the area we are trying to cover. Let $q$ be a location $(x,y)$ where $q$ $\in$ $Q$. A set of minimum-required resolution-per-area values over $Q$ is provided, called $\Uppsi$. The $i$th element in this set is defined by $\psi_i(q)$.
 
-Let $f$ be the focal length of the lens. As with most cameras with optical zoom, we assume that there will be a maximum threshold focal length and a minimum threshold focal length of the camera, $b_\textrm{max}$ and $b_\textrm{min}$. Since most cameras lose image quality at the extremes of their focal length range, $b_\textrm{max}$ and $b_\textrm{min}$ should be set to be values within the actual maximum and minimum focal lengths of the camera.
+Let $f$ be the focal length of the lens. As with most cameras with optical zoom, we assume that there will be a maximum threshold focal length and a minimum threshold focal length of the camera, $f_\textrm{max}$ and $f_\textrm{min}$. Since most cameras lose image quality at the extremes of their focal length range, $f_\textrm{max}$ and $f_\textrm{min}$ should be set to be values within the actual maximum and minimum focal lengths of the camera.
 
 Let $s$ be the length of the image sensor of the camera.
 
@@ -477,12 +478,49 @@ The reasons why we chose this algorithm are multifold. First, by discretizing th
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Discretizing $Q$ via a Clustering Algorithm} \label{clustering}
-While there are numerous heuristic clustering algorithms that exist in literature \cite{xu2005survey}, it is evident that for our problem, a clustering algorithm that both minimizes the number of clusters and intra-cluster $\psi(q)$ variance must be used in order to minimize the number of altitude changes and rotations. Because of the difficulty in knowing how small the variance should be within each cluster, a defined constant percentage threshold $p$ in footprint size can be used. As mentioned before, minimizing the footprint size in each polygon is paramount, as it allows the UAV to travel in straight lines, thereby reducing the number of rotations.
+While there are numerous heuristic clustering algorithms that exist in literature \cite{xu2005survey}, it is evident that for our problem, a clustering algorithm that both minimizes the number of clusters and intra-cluster $\psi(q)$ variance must be used in order to minimize the number of altitude changes and rotations. Because of the difficulty in knowing how small the variance should be within each cluster, a defined constant percentage threshold $p$ in footprint size can be used. As mentioned before, minimizing the variation in footprint size in each polygon is paramount, as it allows the UAV to travel in straight lines, thereby reducing the number of rotations.
 
 Our objective for the clustering algorithm can be defined as follows.
 
-Given $G=(V,E)$ as an unweighted connected graph, where the vertices $V$ are all $\psi(q)$ values in $Q$, and $E$ is the set of edges that represent the adjacency of the $\psi(q)$ values in $Q$, minimize $K$ where $V_1, V_2, ..., V_K$ are connected and disjoint subsets of $V$. In addition, if we define $B_i$ as the set of footprint sizes corresponding to each $\psi(q)$ value in $V_i$, $\frac{B_{i_{max}}-B_{i_{min}}}{B_{i_{min}}} \leq p$ for $i = 1...K$.
+\begin{problem}
+Define $G=(V,E)$ as an unweighted connected graph, where the vertices in $V$ are all $\psi(q)$ values in $Q$, and where $E$ is the set of edges that represent the adjacency of the $\psi(q)$ values in $Q$. In addition, define $B_i$ as the set of footprint sizes corresponding to each $\psi(q)$ value in $V_i$. Then, minimize $K$ where $V_1, V_2, ..., V_K$ are connected and disjoint subsets of $V$, subject to $\frac{B_{i_{max}}-B_{i_{min}}}{B_{i_{min}}} \leq p$ for $i = 1...K$.
+\end{problem}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Clique Reduction to our Algorithm
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Reduction to Clique Cover Problem}
+We prove that our problem is NP hard by reducing the minimum clique cover problem to our clustering problem described above.
+
+The minimum clique cover problem is where we find the minimum number of partitions of vertices of a graph into cliques. A clique is a subset of vertices where every two vertices have an edge between them.
+
+The reduction is as follows:
+From the clique cover problem, you have $G=(V,E)$.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%MIP Problem
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  \sum_{l=1}^{K} y(x_{il},x_{jl}) \geq 1, \text{ } i \neq j \text{ } \forall i = 1,...,n, j = 1,...,n
+\subsection{Mixed Integer Programming Solution}
+
+Minimize $K$ subject to:
+\begin{multline}
+\sum_{l=1}^{K} \frac{\lvert \psi(x_{il})-\psi(x_{jl}) \rvert}{min(\psi(x_{xi}), \psi(x_{jl}) )} \leq P \\ \forall i,j, \text{ } i=1,...,n, j=1,...,n
+\end{multline}
+\begin{equation}
+\sum_{l=1}^{K} x_{il} = 1 \text{ } \forall i = 1,...,n
+\end{equation}
+\begin{equation}
+\sum_{y_{ij} \in Y} \sum_{l=1}^{K} y_{ij} x_{il} x_{jl} \geq 1, \text{ } i \neq j, \text{ } i = 1,...n, j = 1,...n
+\end{equation}
+\begin{equation}
+x_{il} \in \{0,1\} \text{ } \forall i, l, \text{ } i = 1,...n, l=1,...,K
+\end{equation}
+\begin{equation}
+y_{ij} = \{0,1\} \text{ } \forall i,j, \text{ } i \neq j, \text{ } i = 1,...n, j=1,...,n
+\end{equation}
+$P$ is the percentage. $K$ is the number of clusters and we are trying to minimize this number. $x$ is a binary number that represents whether or not vertex $i$ is in cluster $l$. $y$ is a binary number that represents whether or not an edge exists between $i$ and $j$.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Agglomerative Hierarchical Clustering via Ward's Method
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -503,7 +541,7 @@ Agglomerative hierarchical clustering algorithms need a defined stopping point o
 
 The clustering algorithm via Ward's method for our specific application is shown in Algorithm \ref{alg:clustering_3}. Note that $M$ is a symmetric matrix that stores and keeps track of $\Delta(C_i,C_j)$ for every cluster-pair combination. Also note that if two clusters are not adjacent to each other, then $\Delta(C_i,C_j) = \infty$. The time complexity for Algorithm \ref{alg:clustering_3} is $O(n^2)$.
 
-%%TODO: ttps://en.wikipedia.org/wiki/Ward's_method (a faster way of doing HAC)
+%%TODO: https://en.wikipedia.org/wiki/Ward's_method (a faster way of doing HAC)
 \begin{algorithm}
 \begin{algorithmic}[1]
 \STATE Initialize each $\psi(q) \in \Uppsi(q)$ as its own cluster $c \in C$.
@@ -762,7 +800,7 @@ Finally, the time complexity of both algorithms \ref{alg:focal_global_alt} and \
 \label{alg:focal_global}
 \end{algorithm}
 
-%Proof of Correctness
+%Proof of Correctness in Optimality
 \subsubsection{Proof of Correctness}
 This section establishes the correctness of Algorithms \ref{alg:focal_global_alt} and \ref{alg:focal_global} and proves why this greedy controller produces an optimal number of altitude changes for a given coverage path.
 
@@ -795,10 +833,11 @@ Finally, we can prove the correctness of this algorithm by induction:
 \item Induction Step: Assume our algorithm can give us optimal solutions for all sequences where the number of intervals is $z$, for some $z \geq 1$. We show that our algorithm also provides an optimal solution for sequences of size $z+1$. Consider a coverage path where the optimal solution results in $z+1$ intervals. By the greedy choice property, $d_1$ is part of some optimal solution for this problem. By the optimal substructure property, after $d_1$, there is an $S'$ that can be combined with $d_1$ to give us an optimal solution, $S=\langle d_1, S' \rangle$. $S'$ has to consist of $z$ steps. We already assumed we can solve problems of size $z$, and thus, using the logic above, we can also solve $S$, or more generally, problems of size $z+1$.
 \end{enumerate}
 
-\subsubsection{Minimizing Total Distance in Change of Altitude}
-Not only does this algorithm minimize the number of altitude changes, but it also minimizes the total distance of change in altitude.
+%Proof of Minimizing Total Distance in Altitude Change
+\subsubsection{Minimizing Total Distance in Alttiude Change}
+Not only does this algorithm minimize the number of altitude changes, but it also minimizes the total distance the UAV travelled in this third dimension.
 \begin{claim} %minimum total distance in altitude change
-The greedy focal length controller algorithm minimizes the total distance in change of altitude for the UAV.
+The greedy focal length controller algorithm minimizes the total distance travelled in altitude for the UAV.
 \end{claim}
 We prove this via proof of contradiction. We know that our algorithm produces the minimum number of intervals for path $CP$ from the proof of correctness in the previous section, which directly corresponds to a minimum number of altitude shifts. Let this minimum number of altitude shifts be $w$. Thus, the only case we have to consider is the case in which there are more than $w$ altitude shifts.
 
